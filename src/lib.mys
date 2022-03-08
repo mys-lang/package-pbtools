@@ -63,6 +63,21 @@ class Encoder:
     def write_tag(self, field_number: i64, wire_type: WireType):
         self.write_varint(u64((field_number << 3) | i64(wire_type)))
 
+    def write_i32_always(self, field_number: i64, value: i32):
+        self.write_tagged_varint_always(field_number,
+                                        WireType.Varint,
+                                        u64(i64(value)))
+
+    def write_bool_always(self, field_number: i64, value: bool):
+        self.write_i32_always(field_number, i32(value))
+
+    def write_tagged_varint_always(self,
+                                   field_number: i64,
+                                   wire_type: WireType,
+                                   value: u64):
+        self.write_varint(value)
+        self.write_tag(field_number, wire_type)
+
     def data(self) -> bytes:
         r = b""
 
@@ -95,6 +110,9 @@ class Decoder:
 
     def read_enum(self, wire_type: WireType) -> i64:
         return i64(self.read_i32(wire_type))
+
+    def read_bool(self, wire_type: WireType) -> bool:
+        return self.read_i32(wire_type) != 0
 
     def read_varint(self) -> u64:
         value: u64 = 0

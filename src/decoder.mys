@@ -1,0 +1,105 @@
+from . import PbtoolsError
+from . import  WireType
+
+class Decoder:
+    data: bytes
+    pos: i64
+    length: i64
+
+    def slice(self, length: i64) -> Decoder:
+        self.pos += length
+
+        return Decoder(self.data, self.pos - length, self.pos)
+
+    def available(self) -> bool:
+        return self.pos < self.length
+
+    def get(self) -> u8:
+        if not self.available():
+            raise PbtoolsError("Out of data.")
+
+        value = self.data[self.pos]
+        self.pos += 1
+
+        return value
+
+    def read_enum(self, wire_type: WireType) -> i64:
+        return i64(self.read_i32(wire_type))
+
+    def read_bool(self, wire_type: WireType) -> bool:
+        return self.read_i32(wire_type) != 0
+
+    def read_varint(self) -> u64:
+        value: u64 = 0
+        offset: u64 = 0
+        byte: u8 = 0x80
+
+        while (offset < 64) and ((byte & 0x80) == 0x80):
+            byte = self.get()
+            value |= ((u64(byte) & 0x7f) << offset)
+            offset += 7
+
+        if (byte & 0x80) == 0x80:
+            raise PbtoolsError("Varint overflow.")
+
+        return value
+
+    def read_varint_check_wire_type(self,
+                                    wire_type: WireType,
+                                    expected_wire_type: WireType) -> u64:
+        if wire_type != expected_wire_type:
+            raise PbtoolsError("Unecpected wire type.")
+
+        return self.read_varint()
+
+    def read_varint_check_wire_type_varint(self, wire_type: WireType) -> u64:
+        return self.read_varint_check_wire_type(wire_type, WireType.Varint)
+
+    def read_tag(self) -> (i64, WireType):
+        value = self.read_varint()
+        field_number = i64(value >> 3)
+
+        if field_number == 0:
+            raise PbtoolsError("Field number is zero.")
+
+        return (field_number, WireType(i64(value) & 7))
+
+    def read_length_delimited(self, wire_type: WireType) -> u64:
+        return self.read_varint_check_wire_type(wire_type, WireType.LengthDelimited)
+
+    def read_string(self, wire_type: WireType) -> string:
+        size = self.read_length_delimited(wire_type)
+
+        return string(self.read(size))
+
+    def read_i32(self, wire_type: WireType) -> i32:
+        return i32(self.read_i64(wire_type))
+
+    def read_i64(self, wire_type: WireType) -> i64:
+        return i64(self.read_varint_check_wire_type_varint(wire_type))
+
+    def read(self, size: u64) -> bytes:
+        data = b""
+
+        while size > 0:
+            data += self.get()
+            size -= 1
+
+        return data
+
+    def seek(self, offset: i64):
+        self.pos += offset
+
+    def skip_field(self, wire_type: WireType):
+        match wire_type:
+            case WireType.Varint:
+                self.read_varint()
+            case WireType.Bits64:
+                self.seek(8)
+            case WireType.LengthDelimited:
+                value = self.read_length_delimited(wire_type)
+                self.seek(i64(value))
+            case WireType.Bits32:
+                self.seek(4)
+            case _:
+                raise PbtoolsError("Bad wire type")

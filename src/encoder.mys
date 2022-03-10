@@ -1,45 +1,41 @@
 from . import WireType
 
+def _sint32_encode(value: i32) -> u32:
+    if value < 0:
+        return ~(u32(value) << 1)
+    else:
+        return u32(value) << 1
+
+def _sint64_encode(value: i64) -> u64:
+    if value < 0:
+        return ~(u64(value) << 1)
+    else:
+        return u64(value) << 1
+
 class Encoder:
-    pos: u64
-    buf: bytes
+    _length: u64
+    _parts: [bytes]
 
     def __init__(self):
-        self.pos = 99
-        self.buf = bytes(100)
+        self._length = 0
+        self._parts = []
 
-    def write_enum(self, field_number: i64, value: i64):
-        self.write(field_number, i32(value))
-
-    def write(self, field_number: i64, value: string):
-        if len(value) == 0:
-            return
-
-        data = value.to_utf8()
-        self.write(data)
-        self.write_tagged_varint(field_number, WireType.LengthDelimited, len(data))
-
-    def write(self, field_number: i64, value: i32):
-        self.write_tagged_varint(field_number, WireType.Varint, u64(i64(value)))
-
-    def write(self, value: bytes):
-        self.pos -= len(value)
-
-        for i in range(i64(len(value))):
-            self.buf[i64(self.pos) + 1 + i] = value[i]
+    def _write(self, value: bytes):
+        self._length += len(value)
+        self._parts.append(value)
 
     def write_length_delimited(self, field_number: i64, value: u64):
-        self.write_varint(value)
-        self.write_tag(field_number, WireType.LengthDelimited)
+        self._write_varint(value)
+        self._write_tag(field_number, WireType.LengthDelimited)
 
-    def write_tagged_varint(self, field_number: i64, wire_type: WireType, value: u64):
+    def _write_tagged_varint(self, field_number: i64, wire_type: WireType, value: u64):
         if value == 0:
             return
 
-        self.write_varint(value)
-        self.write_tag(field_number, wire_type)
+        self._write_varint(value)
+        self._write_tag(field_number, wire_type)
 
-    def write_varint(self, value: u64):
+    def _write_varint(self, value: u64):
         buf = b""
 
         while True:
@@ -50,30 +46,173 @@ class Encoder:
                 break
 
         buf[-1] &= 0x7f
-        self.write(buf)
+        self._write(buf)
 
-    def write_tag(self, field_number: i64, wire_type: WireType):
-        self.write_varint(u64((field_number << 3) | i64(wire_type)))
+    def _write_tag(self, field_number: i64, wire_type: WireType):
+        self._write_varint(u64((field_number << 3) | i64(wire_type)))
 
-    def write_i32_always(self, field_number: i64, value: i32):
-        self.write_tagged_varint_always(field_number,
-                                        WireType.Varint,
-                                        u64(i64(value)))
+    def _write_tagged_varint_always(self,
+                                    field_number: i64,
+                                    wire_type: WireType,
+                                    value: u64):
+        self._write_varint(value)
+        self._write_tag(field_number, wire_type)
+
+    def length(self) -> u64:
+        return self._length
+
+    def finalize(self) -> bytes:
+        value = b""
+
+        for part in reversed(self._parts):
+            value += part
+
+        return value
+
+    def write_int32(self, field_number: i64, value: i32):
+        self._write_tagged_varint(field_number, WireType.Varint, u64(i64(value)))
+
+    def write_int64(self, field_number: i64, value: i64):
+        self._write_tagged_varint(field_number, WireType.Varint, u64(value))
+
+    def write_sint32(self, field_number: i64, value: i32):
+        self.write_sint64(field_number, i64(value))
+
+    def write_sint64(self, field_number: i64, value: i64):
+        self.write_uint64(field_number, _sint64_encode(value))
+
+    def write_uint32(self, field_number: i64, value: u32):
+        raise NotImplementedError()
+
+    def write_uint64(self, field_number: i64, value: u64):
+        raise NotImplementedError()
+
+    def write_fixed32(self, field_number: i64, value: u32):
+        raise NotImplementedError()
+
+    def write_fixed64(self, field_number: i64, value: u64):
+        raise NotImplementedError()
+
+    def write_sfixed32(self, field_number: i64, value: i32):
+        raise NotImplementedError()
+
+    def write_sfixed64(self, field_number: i64, value: i64):
+        raise NotImplementedError()
+
+    def write_float(self, field_number: i64, value: f32):
+        raise NotImplementedError()
+
+    def write_double(self, field_number: i64, value: f64):
+        raise NotImplementedError()
+
+    def write_bool(self, field_number: i64, value: bool):
+        raise NotImplementedError()
+
+    def write_enum(self, field_number: i64, value: i32):
+        self.write_int32(field_number, i32(value))
+
+    def write_string(self, field_number: i64, value: string):
+        if len(value) == 0:
+            return
+
+        data = value.to_utf8()
+        self._write(data)
+        self._write_tagged_varint(field_number, WireType.LengthDelimited, len(data))
+
+    def write_bytes(self, field_number: i64, value: bytes):
+        raise NotImplementedError()
+
+    def write_int32_always(self, field_number: i64, value: i32):
+        self._write_tagged_varint_always(field_number,
+                                         WireType.Varint,
+                                         u64(i64(value)))
+
+    def write_int64_always(self, field_number: i64, value: i64):
+        raise NotImplementedError()
+
+    def write_sint32_always(self, field_number: i64, value: i32):
+        raise NotImplementedError()
+
+    def write_sint64_always(self, field_number: i64, value: i64):
+        raise NotImplementedError()
+
+    def write_uint32_always(self, field_number: i64, value: i32):
+        raise NotImplementedError()
+
+    def write_uint64_always(self, field_number: i64, value: i64):
+        raise NotImplementedError()
+
+    def write_fixed32_always(self, field_number: i64, value: i32):
+        raise NotImplementedError()
+
+    def write_fixed64_always(self, field_number: i64, value: i64):
+        raise NotImplementedError()
+
+    def write_sfixed32_always(self, field_number: i64, value: i32):
+        raise NotImplementedError()
+
+    def write_sfixed64_always(self, field_number: i64, value: i64):
+        raise NotImplementedError()
+
+    def write_float_always(self, field_number: i64, value: f32):
+        raise NotImplementedError()
+
+    def write_double_always(self, field_number: i64, value: f64):
+        raise NotImplementedError()
 
     def write_bool_always(self, field_number: i64, value: bool):
-        self.write_i32_always(field_number, i32(value))
+        self.write_int32_always(field_number, i32(value))
 
-    def write_tagged_varint_always(self,
-                                   field_number: i64,
-                                   wire_type: WireType,
-                                   value: u64):
-        self.write_varint(value)
-        self.write_tag(field_number, wire_type)
+    def write_enum_always(self, field_number: i64, value: i32):
+        raise NotImplementedError()
 
-    def data(self) -> bytes:
-        r = b""
+    def write_string_always(self, field_number: i64, value: string):
+        raise NotImplementedError()
 
-        for i in range(i64(self.pos + 1), i64(len(self.buf))):
-            r += self.buf[i]
+    def write_bytes_always(self, field_number: i64, value: bytes):
+        raise NotImplementedError()
 
-        return r
+    def write_repeated_int32(self, field_number: i64, value: [i32]):
+        raise NotImplementedError()
+
+    def write_repeated_int64(self, field_number: i64, value: [i64]):
+        raise NotImplementedError()
+
+    def write_repeated_sint32(self, field_number: i64, value: [i32]):
+        raise NotImplementedError()
+
+    def write_repeated_sint64(self, field_number: i64, value: [i64]):
+        raise NotImplementedError()
+
+    def write_repeated_uint32(self, field_number: i64, value: [u32]):
+        raise NotImplementedError()
+
+    def write_repeated_uint64(self, field_number: i64, value: [u64]):
+        raise NotImplementedError()
+
+    def write_repeated_fixed32(self, field_number: i64, value: [u32]):
+        raise NotImplementedError()
+
+    def write_repeated_fixed64(self, field_number: i64, value: [u64]):
+        raise NotImplementedError()
+
+    def write_repeated_sfixed32(self, field_number: i64, value: [i32]):
+        raise NotImplementedError()
+
+    def write_repeated_sfixed64(self, field_number: i64, value: [i64]):
+        raise NotImplementedError()
+
+    def write_repeated_float(self, field_number: i64, value: [f32]):
+        raise NotImplementedError()
+
+    def write_repeated_double(self, field_number: i64, value: [f64]):
+        raise NotImplementedError()
+
+    def write_repeated_bool(self, field_number: i64, value: [bool]):
+        raise NotImplementedError()
+
+    def write_repeated_string(self, field_number: i64, value: [string]):
+        raise NotImplementedError()
+
+    def write_repeated_bytes(self, field_number: i64, value: [bytes]):
+        raise NotImplementedError()

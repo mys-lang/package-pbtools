@@ -11,9 +11,6 @@ class Decoder:
 
         return Decoder(self.data, self.pos - length, self.pos)
 
-    def available(self) -> bool:
-        return self.pos < self.length
-
     def get(self) -> u8:
         if not self.available():
             raise PbtoolsError("Out of data.")
@@ -22,12 +19,6 @@ class Decoder:
         self.pos += 1
 
         return value
-
-    def read_enum(self, wire_type: WireType) -> i64:
-        return i64(self.read_i32(wire_type))
-
-    def read_bool(self, wire_type: WireType) -> bool:
-        return self.read_i32(wire_type) != 0
 
     def read_varint(self) -> u64:
         value: u64 = 0
@@ -55,28 +46,8 @@ class Decoder:
     def read_varint_check_wire_type_varint(self, wire_type: WireType) -> u64:
         return self.read_varint_check_wire_type(wire_type, WireType.Varint)
 
-    def read_tag(self) -> (i64, WireType):
-        value = self.read_varint()
-        field_number = i64(value >> 3)
-
-        if field_number == 0:
-            raise PbtoolsError("Field number is zero.")
-
-        return (field_number, WireType(i64(value) & 7))
-
     def read_length_delimited(self, wire_type: WireType) -> u64:
         return self.read_varint_check_wire_type(wire_type, WireType.LengthDelimited)
-
-    def read_string(self, wire_type: WireType) -> string:
-        size = self.read_length_delimited(wire_type)
-
-        return string(self.read(size))
-
-    def read_i32(self, wire_type: WireType) -> i32:
-        return i32(self.read_i64(wire_type))
-
-    def read_i64(self, wire_type: WireType) -> i64:
-        return i64(self.read_varint_check_wire_type_varint(wire_type))
 
     def read(self, size: u64) -> bytes:
         data = b""
@@ -89,6 +60,158 @@ class Decoder:
 
     def seek(self, offset: i64):
         self.pos += offset
+
+    def available(self) -> bool:
+        return self.pos < self.length
+
+    def read_tag(self) -> (i64, WireType):
+        value = self.read_varint()
+        field_number = i64(value >> 3)
+
+        if field_number == 0:
+            raise PbtoolsError("Field number is zero.")
+
+        return (field_number, WireType(i64(value) & 7))
+
+    def read_int32(self, wire_type: WireType) -> i32:
+        return i32(self.read_int64(wire_type))
+
+    def read_int64(self, wire_type: WireType) -> i64:
+        return i64(self.read_varint_check_wire_type_varint(wire_type))
+
+#     int32_t read_sint32(self, int wire_type):
+#         raise NotImplementedError()
+#
+#     int64_t read_sint64(self, int wire_type):
+#         raise NotImplementedError()
+#
+#     uint32_t read_uint32(self, int wire_type):
+#         raise NotImplementedError()
+#
+#     uint64_t read_uint64(self, int wire_type):
+#         raise NotImplementedError()
+#
+#     uint32_t read_fixed32(self, int wire_type):
+#         raise NotImplementedError()
+#
+#     uint64_t read_fixed64(self, int wire_type):
+#         raise NotImplementedError()
+#
+#     int32_t read_sfixed32(self, int wire_type):
+#         raise NotImplementedError()
+#
+#     int64_t read_sfixed64(self, int wire_type):
+#         raise NotImplementedError()
+#
+#     float read_float(self, int wire_type):
+#         raise NotImplementedError()
+#
+#     double read_double(self, int wire_type):
+#         raise NotImplementedError()
+
+    def read_bool(self, wire_type: WireType) -> bool:
+        return self.read_int32(wire_type) != 0
+
+    def read_enum(self, wire_type: WireType) -> i32:
+        return self.read_int32(wire_type)
+
+    def read_string(self, wire_type: WireType) -> string:
+        size = self.read_length_delimited(wire_type)
+
+        return string(self.read(size))
+
+#     void read_bytes(self, int wire_type, struct pbtools_bytes_t *bytes_p):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_decode_int32(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+#     void decode_repeated_int32(self, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_int32_t *repeated_p):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_decode_int64(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+# void decode_repeated_int64(self, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_int64_t *repeated_p):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_decode_uint32(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+#     void decode_repeated_uint32(self, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_uint32_t *repeated_p):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_decode_uint64(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+#     void decode_repeated_uint64(self, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_uint64_t *repeated_p):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_decode_sint32(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+#     void decode_repeated_sint32(self, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_int32_t *repeated_p):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_decode_sint64(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+#     void decode_repeated_sint64(self, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_int64_t *repeated_p):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_decode_fixed32(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+#     void decode_repeated_fixed32(self, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_uint32_t *repeated_p):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_decode_fixed64(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+#     void decode_repeated_fixed64(self, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_uint64_t *repeated_p):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_decode_sfixed32(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+#     void decode_repeated_sfixed32(self, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_int32_t *repeated_p):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_decode_sfixed64(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+#     void decode_repeated_sfixed64(self, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_int64_t *repeated_p):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_decode_float(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+#     void decode_repeated_float(self, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_float_t *repeated_p):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_decode_double(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+#     void decode_repeated_double(self, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_double_t *repeated_p):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_decode_bool(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+#     void decode_repeated_bool(self, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_bool_t *repeated_p):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_decode_string(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+#     void decode_repeated_string(self, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_string_t *repeated_p):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_decode_bytes(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+#     void decode_repeated_bytes(self, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_bytes_t *repeated_p):
+#         raise NotImplementedError()
 
     def skip_field(self, wire_type: WireType):
         match wire_type:
@@ -103,3 +226,45 @@ class Decoder:
                 self.seek(4)
             case _:
                 raise PbtoolsError("Bad wire type")
+
+#     void pbtools_bytes_init(struct pbtools_bytes_t *self_p):
+#         raise NotImplementedError()
+#
+#     void *pbtools_message_new(void *workspace_p, size_t size, size_t message_size, pbtools_message_init_t message_init):
+#         raise NotImplementedError()
+#
+#     int pbtools_message_encode(struct pbtools_message_base_t *self_p, uint8_t *encoded_p, size_t size, pbtools_message_encode_inner_t message_encode_inner):
+#         raise NotImplementedError()
+#
+#     int pbtools_message_decode(struct pbtools_message_base_t *self_p, const uint8_t *encoded_p, size_t size, pbtools_message_decode_inner_t message_decode_inner):
+#         raise NotImplementedError()
+#
+#     void pbtools_encode_repeated_inner(struct pbtools_encoder_t *encoder_p, int field_number, struct pbtools_repeated_message_t *repeated_p, size_t item_size, pbtools_message_encode_inner_t message_encode_inner):
+#         raise NotImplementedError()
+#
+#     void pbtools_decode_repeated_inner(struct t *decoder_p, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_message_t *repeated_p, size_t item_size, pbtools_message_init_t message_init, pbtools_message_decode_inner_t message_decode_inner):
+#         raise NotImplementedError()
+#
+#     void pbtools_encoder_sub_message_encode(struct pbtools_encoder_t *self_p, int field_number, struct pbtools_message_base_t *message_p, pbtools_message_encode_inner_t encode_inner):
+#         raise NotImplementedError()
+#
+#     void pbtools_encoder_sub_message_encode_always(struct pbtools_encoder_t *self_p, int field_number, struct pbtools_message_base_t *message_p, pbtools_message_encode_inner_t encode_inner):
+#         raise NotImplementedError()
+#
+#     void sub_message_decode(self, int wire_type, struct pbtools_message_base_t **message_pp, size_t sub_message_size, pbtools_message_init_t message_init, pbtools_message_decode_inner_t decode_inner):
+#         raise NotImplementedError()
+#
+#     const char *pbtools_error_code_to_string(int code):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_init(struct pbtools_repeated_info_t *self_p, int tag):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_info_decode(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_numeric_scalar_info_decode(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()
+#
+#     void pbtools_repeated_varint_info_decode(struct pbtools_repeated_info_t *self_p, struct t *decoder_p, int wire_type):
+#         raise NotImplementedError()

@@ -6,12 +6,12 @@ class Decoder:
     pos: i64
     length: i64
 
-    def slice(self, length: i64) -> Decoder:
+    func slice(self, length: i64) -> Decoder:
         self.pos += length
 
         return Decoder(self.data, self.pos - length, self.pos)
 
-    def get(self) -> u8:
+    func get(self) -> u8:
         if not self.available():
             raise PbtoolsError("Out of data.")
 
@@ -20,7 +20,7 @@ class Decoder:
 
         return value
 
-    def read_varint(self) -> u64:
+    func read_varint(self) -> u64:
         value: u64 = 0
         offset: u64 = 0
         byte: u8 = 0x80
@@ -35,7 +35,7 @@ class Decoder:
 
         return value
 
-    def read_varint_check_wire_type(self,
+    func read_varint_check_wire_type(self,
                                     wire_type: WireType,
                                     expected_wire_type: WireType) -> u64:
         if wire_type != expected_wire_type:
@@ -43,13 +43,13 @@ class Decoder:
 
         return self.read_varint()
 
-    def read_varint_check_wire_type_varint(self, wire_type: WireType) -> u64:
+    func read_varint_check_wire_type_varint(self, wire_type: WireType) -> u64:
         return self.read_varint_check_wire_type(wire_type, WireType.Varint)
 
-    def read_length_delimited(self, wire_type: WireType) -> u64:
+    func read_length_delimited(self, wire_type: WireType) -> u64:
         return self.read_varint_check_wire_type(wire_type, WireType.LengthDelimited)
 
-    def read(self, size: u64) -> bytes:
+    func read(self, size: u64) -> bytes:
         data = b""
 
         while size > 0:
@@ -58,13 +58,13 @@ class Decoder:
 
         return data
 
-    def seek(self, offset: i64):
+    func seek(self, offset: i64):
         self.pos += offset
 
-    def available(self) -> bool:
+    func available(self) -> bool:
         return self.pos < self.length
 
-    def read_tag(self) -> (i64, WireType):
+    func read_tag(self) -> (i64, WireType):
         value = self.read_varint()
         field_number = i64(value >> 3)
 
@@ -73,10 +73,10 @@ class Decoder:
 
         return (field_number, WireType(i64(value) & 7))
 
-    def read_int32(self, wire_type: WireType) -> i32:
+    func read_int32(self, wire_type: WireType) -> i32:
         return i32(self.read_int64(wire_type))
 
-    def read_int64(self, wire_type: WireType) -> i64:
+    func read_int64(self, wire_type: WireType) -> i64:
         return i64(self.read_varint_check_wire_type_varint(wire_type))
 
 #     int32_t read_sint32(self, int wire_type):
@@ -109,13 +109,13 @@ class Decoder:
 #     double read_double(self, int wire_type):
 #         raise NotImplementedError()
 
-    def read_bool(self, wire_type: WireType) -> bool:
+    func read_bool(self, wire_type: WireType) -> bool:
         return self.read_int32(wire_type) != 0
 
-    def read_enum(self, wire_type: WireType) -> i32:
+    func read_enum(self, wire_type: WireType) -> i32:
         return self.read_int32(wire_type)
 
-    def read_string(self, wire_type: WireType) -> string:
+    func read_string(self, wire_type: WireType) -> string:
         size = self.read_length_delimited(wire_type)
 
         return string(self.read(size))
@@ -213,7 +213,7 @@ class Decoder:
 #     void decode_repeated_bytes(self, struct pbtools_repeated_info_t *repeated_info_p, struct pbtools_repeated_bytes_t *repeated_p):
 #         raise NotImplementedError()
 
-    def skip_field(self, wire_type: WireType):
+    func skip_field(self, wire_type: WireType):
         match wire_type:
             case WireType.Varint:
                 self.read_varint()

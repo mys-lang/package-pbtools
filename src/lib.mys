@@ -1,8 +1,7 @@
 class PbtoolsError(Error):
     message: string
 
-@enum
-class WireType:
+enum WireType:
     Varint = 0
     Bits64 = 1
     LengthDelimited = 2

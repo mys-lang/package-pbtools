@@ -13,7 +13,7 @@ func _sint64_encode(value: i64) -> u64:
         return u64(value) << 1
 
 class Encoder:
-    _length: u64
+    _length: i64
     _parts: [bytes]
 
     func __init__(self):
@@ -21,7 +21,7 @@ class Encoder:
         self._parts = []
 
     func _write(self, value: bytes):
-        self._length += len(value)
+        self._length += value.length()
         self._parts.append(value)
 
     func write_length_delimited(self, field_number: i64, value: u64):
@@ -58,7 +58,7 @@ class Encoder:
         self._write_varint(value)
         self._write_tag(field_number, wire_type)
 
-    func length(self) -> u64:
+    func length(self) -> i64:
         return self._length
 
     func finalize(self) -> bytes:
@@ -112,12 +112,14 @@ class Encoder:
         self.write_int32(field_number, i32(value))
 
     func write_string(self, field_number: i64, value: string):
-        if len(value) == 0:
+        if value.length() == 0:
             return
 
         data = value.to_utf8()
         self._write(data)
-        self._write_tagged_varint(field_number, WireType.LengthDelimited, len(data))
+        self._write_tagged_varint(field_number,
+                                  WireType.LengthDelimited,
+                                  u64(data.length()))
 
     func write_bytes(self, field_number: i64, value: bytes):
         raise NotImplementedError()
